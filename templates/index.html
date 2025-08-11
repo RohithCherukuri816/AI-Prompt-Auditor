@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✨ AI Prompt Auditor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            accent: '#a5b4fc',
+            bgLight: '#f3f4f6',
+            bgDark: '#18181b',
+          },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="h-full bg-bgLight dark:bg-bgDark transition-colors duration-300">
+  <div class="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+    <div class="w-full max-w-2xl bg-white dark:bg-zinc-900 bg-opacity-90 dark:bg-opacity-90 rounded-3xl shadow-2xl p-8 md:p-12 transition-colors duration-300">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-primary dark:text-accent flex items-center gap-2">
+          <span>🧠</span> AI Prompt Auditor
+        </h1>
+        <button id="toggleTheme" aria-label="Toggle dark mode" class="rounded-full p-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
+          <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary dark:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path id="sunIcon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.93l-.71-.71M12 7a5 5 0 100 10 5 5 0 000-10z" />
+            <path id="moonIcon" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+          </svg>
+        </button>
+      </div>
+      <p class="text-zinc-700 dark:text-zinc-300 mb-2">Paste your prompt and optional context below. See how the AI judges it!</p>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-6">💡 Try prompts like: <span class="italic">"Write a detailed Python script that fetches weather data..."</span></p>
+      <form id="promptForm" class="space-y-4">
+        <textarea id="prompt" rows="4" class="w-full border border-zinc-300 dark:border-zinc-700 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-zinc-800 dark:text-zinc-100 transition-colors" placeholder="Your prompt..." required></textarea>
+        <textarea id="context" rows="2" class="w-full border border-zinc-300 dark:border-zinc-700 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-zinc-800 dark:text-zinc-100 transition-colors" placeholder="Optional context..."></textarea>
+        <div class="flex gap-4 justify-center">
+          <button type="submit" class="bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-md transition-all flex items-center gap-2">
+            <span>Generate</span> <span>✨</span>
+          </button>
+          <button type="button" id="clearCacheBtn" class="bg-zinc-400 hover:bg-zinc-500 text-white font-bold py-3 px-6 rounded-full shadow-md transition-all">Clear Cache 🔄</button>
+        </div>
+      </form>
+      <div id="resultCard" class="mt-8 hidden">
+        <div class="rounded-2xl bg-bgLight dark:bg-zinc-800 p-6 shadow-lg border border-zinc-200 dark:border-zinc-700">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-2xl">📊</span>
+            <h2 class="text-xl font-bold text-primary dark:text-accent">Scores</h2>
+          </div>
+          <div id="scores" class="mb-4 text-zinc-800 dark:text-zinc-100"></div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-2xl">💬</span>
+            <h2 class="text-lg font-bold text-primary dark:text-accent">Comments</h2>
+          </div>
+          <div id="comments" class="mb-4 text-zinc-700 dark:text-zinc-200"></div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-2xl">✏️</span>
+            <h2 class="text-lg font-bold text-primary dark:text-accent">Suggested Prompt</h2>
+          </div>
+          <blockquote id="suggested" class="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-xl text-zinc-800 dark:text-zinc-100"></blockquote>
+        </div>
+        <div id="cacheStatus" class="mt-4 text-xs text-zinc-500 dark:text-zinc-400 text-center"></div>
+      </div>
+    </div>
+    <footer class="mt-8 text-xs text-zinc-400 dark:text-zinc-600 text-center">
+      &copy; 2024 AI Prompt Auditor. Powered by Flan-T5.
+    </footer>
+  </div>
+  <script>
+    // Dark/Light mode toggle
+    const toggleTheme = document.getElementById('toggleTheme');
+    const html = document.documentElement;
+    const themeIcon = document.getElementById('themeIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+    function setTheme(dark) {
+      if (dark) {
+        html.classList.add('dark');
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        html.classList.remove('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
+        localStorage.setItem('theme', 'light');
+      }
+    }
+    toggleTheme.onclick = () => setTheme(!html.classList.contains('dark'));
+    // On load
+    if (localStorage.getItem('theme') === 'dark' || (window.matchMedia('(prefers-color-scheme: dark)').matches && !localStorage.getItem('theme'))) {
+      setTheme(true);
+    } else {
+      setTheme(false);
+    }
+
+    // Form handling
+    const promptForm = document.getElementById('promptForm');
+    const resultCard = document.getElementById('resultCard');
+    const scoresDiv = document.getElementById('scores');
+    const commentsDiv = document.getElementById('comments');
+    const suggestedDiv = document.getElementById('suggested');
+    const cacheStatusDiv = document.getElementById('cacheStatus');
+    const clearCacheBtn = document.getElementById('clearCacheBtn');
+
+    promptForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const prompt = document.getElementById('prompt').value.trim();
+      const context = document.getElementById('context').value.trim();
+      if (!prompt) return alert("Please enter a prompt!");
+      resultCard.classList.add('hidden');
+      cacheStatusDiv.innerHTML = '';
+      scoresDiv.innerHTML = commentsDiv.innerHTML = suggestedDiv.innerHTML = '⏳ Generating...';
+      try {
+        const response = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, context })
+        });
+        const data = await response.json();
+        const raw = data.response || "❌ No response";
+        // Parse sections
+        const scoresMatch = raw.match(/Scores:\s*(.*?)\s*Comments:/s);
+        const commentsMatch = raw.match(/Comments:\s*(.*?)\s*Suggested:/s);
+        const suggestedMatch = raw.match(/Suggested:\s*(.*)/s);
+        if (scoresMatch) {
+          const scores = scoresMatch[1].split(",").map(s => s.trim()).join("<br>");
+          scoresDiv.innerHTML = scores;
+        } else {
+          scoresDiv.innerHTML = '❌ Could not parse scores!';
+        }
+        if (commentsMatch) {
+          const comments = commentsMatch[1].split(",").map(s => s.trim()).join("<br>");
+          commentsDiv.innerHTML = comments;
+        } else {
+          commentsDiv.innerHTML = '❌ Could not parse comments!';
+        }
+        if (suggestedMatch) {
+          suggestedDiv.innerHTML = suggestedMatch[1].trim();
+        } else {
+          suggestedDiv.innerHTML = '❌ Could not parse suggestion!';
+        }
+        resultCard.classList.remove('hidden');
+        cacheStatusDiv.innerHTML = "✅ Response cached for consistency";
+      } catch (err) {
+        scoresDiv.innerHTML = commentsDiv.innerHTML = suggestedDiv.innerHTML = "❌ Error: " + err;
+        resultCard.classList.remove('hidden');
+        cacheStatusDiv.innerHTML = '';
+      }
+    };
+
+    clearCacheBtn.onclick = async () => {
+      try {
+        const response = await fetch("/clear_cache", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await response.json();
+        cacheStatusDiv.innerHTML = "🔄 Cache cleared! Next generation will be fresh.";
+        resultCard.classList.add('hidden');
+      } catch (err) {
+        cacheStatusDiv.innerHTML = "❌ Error clearing cache: " + err;
+      }
+    };
+  </script>
+</body>
+</html> 
